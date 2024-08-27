@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebRTC Play Demo</title>
+  <link rel="stylesheet" href="css/rtc_main.css" />
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="icon" href="data:;base64,=">
+  <style>
+    .video-container {
+      position: relative;
+      display: inline-block;
+    }
+    .play-button {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80px;
+      height: 80px;
+      background: url('play-icon.png') no-repeat center center;
+      background-size: contain;
+      cursor: pointer;
+      z-index: 2;
+    }
+    video {
+      display: block;
+      width: 100%; /* Ensure video is responsive */
+    }
+  </style>
+</head>
+<body>
+  <div id="container" align="center">
+    <h1>WebRTC Play Demo</h1>
+    
+    <div class="video-container">
+      <video id="video2" autoplay playsinline preload="auto" poster="sample-poster.jpg" height="200" disablepictureinpicture></video>
+      <div id="play2" class="play-button"></div>
+    </div>
+    
+    <br/>
+    
+    <div class="video-container">
+      <video id="video1" autoplay playsinline preload="auto" poster="sample-poster.jpg" height="480"></video>
+      <div id="play1" class="play-button"></div>
+    </div>
+  </div>
+  
+  <script src="wsrtcplayer.min.js"></script>
+  <script>
+    function onEvent(type, data) {
+      switch (type) {
+        case 3:
+          console.log((window.performance.now() / 1000).toFixed(3) + ": customer event : " + data);
+          break;
+        case 2:
+          console.log((window.performance.now() / 1000).toFixed(3) + ": customer event sdp: " + data.toString());
+          break;
+        case 1:
+          console.log((window.performance.now() / 1000).toFixed(3) + ": customer event caton");
+          break;
+        case 0:
+          console.log((window.performance.now() / 1000).toFixed(3) + ": customer event resume");
+          break;
+      }
+    }
+
+    function setupPlayer(videoElement, signalUrl, playButtonId) {
+      var player = window.wsrtcplayer.createWSRTCPlayer({
+        element: videoElement,
+        customerID: "bjweimiao",
+        listener: onEvent
+      });
+      player.open(signalUrl);
+
+      videoElement.addEventListener('loadedmetadata', () => {
+        videoElement.currentTime = 0; // Start from the beginning
+      });
+
+      videoElement.addEventListener('seeked', () => {
+        videoElement.currentTime = videoElement.seekable.end(0); // Stay at the end of the buffered area
+      });
+
+      document.getElementById(playButtonId).style.display = 'none'; // Hide play button after click
+      return player;
+    }
+
+    var player2, player1;
+
+    function initializePlayer(player, videoElement, signalUrl, playButtonId) {
+      if (player) {
+        console.log('Destroying existing player');
+        player.close();
+      }
+      return setupPlayer(videoElement, signalUrl, playButtonId);
+    }
+
+    document.getElementById('play2').onclick = function() {
+      player2 = initializePlayer(
+        player2,
+        document.getElementById('video2'),
+        "https://pull.tripledg.live/A2A/Stream1-Pri.sdp?wsSecret=ee8b6c95f82dfde8551ed798328ccab4&wsTime=1724739947",
+        'play2'
+      );
+    };
+
+    document.getElementById('play1').onclick = function() {
+      player1 = initializePlayer(
+        player1,
+        document.getElementById('video1'),
+        "https://pull.tripledg.live/A2A/Stream1-Pri.sdp?wsSecret=ee8b6c95f82dfde8551ed798328ccab4&wsTime=1724739947",
+        'play1'
+      );
+    };
+
+    // Function to add subtitles
+    function addSubtitle(trackElement, text) {
+      var track = trackElement.track;
+      var cue = new VTTCue(0, 9999, text); // Display indefinitely
+      track.addCue(cue);
+    }
+
+    // Fetch and display the IP address as subtitles
+    fetch('/ip')
+      .then(response => response.json())
+      .then(data => {
+        var ipText = 'IP Address: ' + data.ip;
+        addSubtitle(document.getElementById('track1'), ipText);
+        addSubtitle(document.getElementById('track2'), ipText);
+      })
+      .catch(error => {
+        console.error('Error fetching IP address:', error);
+      });
+
+    // Save the current playback time before unload
+    window.addEventListener('beforeunload', () => {
+      const video1 = document.getElementById('video1');
+      const video2 = document.getElementById('video2');
+      localStorage.setItem('video1Time', video1.currentTime);
+      localStorage.setItem('video2Time', video2.currentTime);
+    });
+
+    // Restore the playback time after reload
+    window.addEventListener('load', () => {
+      const video1 = document.getElementById('video1');
+      const video2 = document.getElementById('video2');
+      video1.currentTime = localStorage.getItem('video1Time') || 0;
+      video2.currentTime = localStorage.getItem('video2Time') || 0;
+      // Use a short timeout to ensure the player initializes correctly
+      setTimeout(() => {
+        video1.play();
+        video2.play();
+      }, 500);
+    });
+  </script>
+</body>
+</html>

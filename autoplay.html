@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base target="_blank">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebRTC Play Demo</title>
+  <link rel="stylesheet" href="css/rtc_main.css" />
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="icon" href="data:;base64,=">
+  <style>
+    .video-container {
+      position: relative;
+      display: inline-block;
+    }
+    video {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div id="container" align="center">
+    <h1>WebRTC Play Demo</h1>
+    
+    <div class="video-container">
+      <video id="video2" autoplay controls muted playsinline poster="sample-poster.jpg" width="100%" height="480" disablepictureinpicture>
+        <track id="track2" kind="subtitles" label="English" srclang="en" default>
+      </video>
+    </div>
+    
+    <br/>
+    
+    <div class="video-container">
+      <video id="video1" autoplay controls muted playsinline poster="sample-poster.jpg" height="480">
+        <track id="track1" kind="subtitles" label="English" srclang="en" default>
+      </video>
+    </div>
+  </div>
+  
+  <script src="wsrtcplayer.min.js"></script>
+  <script>
+    function onEvent(type, data) {
+      switch (type) {
+        case 3:
+          console.log((window.performance.now() / 1000).toFixed(3) + ": customer event : " + data);
+          break;
+        case 2:
+          console.log((window.performance.now() / 1000).toFixed(3) + ": customer event sdp: " + data.toString());
+          break;
+        case 1:
+          console.log((window.performance.now() / 1000).toFixed(3) + ": customer event caton");
+          break;
+        case 0:
+          console.log((window.performance.now() / 1000).toFixed(3) + ": customer event resume");
+          break;
+      }
+    }
+
+    var player;
+    function initializePlayer(videoElement, signalUrl) {
+      if (player) {
+        player.close();
+      }
+      var options = {
+        element: videoElement,
+        customerID: "bjweimiao",
+        listener: onEvent
+      };
+      player = window.wsrtcplayer.createWSRTCPlayer(options);
+      player.open(signalUrl);
+    }
+
+    initializePlayer(document.getElementById('video2'), "http://livep2p-pull.8686c.com/live/cctest1.sdp");
+    initializePlayer(document.getElementById('video1'), "http://livep2p-pull.8686c.com/live/cctest1.sdp");
+
+    // Function to add subtitles
+    function addSubtitle(trackElement, text) {
+      var track = trackElement.track;
+      var cue = new VTTCue(0, 9999, text); // Display indefinitely
+      track.addCue(cue);
+    }
+
+    // Fetch and display the IP address as subtitles
+    fetch('/ip')
+      .then(response => response.json())
+      .then(data => {
+        var ipText = 'IP Address: ' + data.ip;
+        addSubtitle(document.getElementById('track1'), ipText);
+        addSubtitle(document.getElementById('track2'), ipText);
+      })
+      .catch(error => {
+        console.error('Error fetching IP address:',
